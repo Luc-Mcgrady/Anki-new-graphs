@@ -23,6 +23,7 @@
     export let trend = false
     export let trend_by: (values: number[]) => number = _.sum
     export let trend_info: TrendInfo = {}
+    export let loss: boolean = false
 
     $: min = left_aligned ? 0 : 1
     $: absOffset = Math.abs(offset)
@@ -58,13 +59,15 @@
     $: {
         bars = _.range(leftmost, realOffset, binSize).map((i) => ({
             label: (i + min).toString(),
-            values: data.row_labels.map((_) => 0),
+            values: loss ? [0, 0] : data.row_labels.map((_) => 0),
         }))
 
         for (const [i, bar] of seperate_bars.entries()) {
             const newIndex = Math.floor(i / binSize)
 
-            bars[newIndex].values = bars[newIndex].values.map((a, i) => a + (bar?.values[i] || 0))
+            bars[newIndex].values = bars[newIndex].values.map(
+                (a, i) => a + (bar?.values ? bar?.values[i] || 0 : 0)
+            )
         }
 
         if (average) {
@@ -73,7 +76,11 @@
                     .slice(i * binSize, (i + 1) * binSize)
                     .reduce((p, n) => p + (_.sum(n.values) > 0 ? 1 : 0), 0)
 
-                bar.values = bar.values.map((a) => a / (count || 1))
+                if (loss) {
+                    bar.values = bar.values ? [Math.sqrt(bar.values[0] / bar.values[1])] : [0, 0]
+                } else {
+                    bar.values = bar.values.map((a) => a / (count || 1))
+                }
             })
         }
     }

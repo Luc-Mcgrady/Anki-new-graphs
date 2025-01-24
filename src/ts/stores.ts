@@ -1,6 +1,8 @@
 import { derived, get, writable } from "svelte/store"
+import type { LossBar } from "./bar"
 import type { SSEconfig, SSEother } from "./config"
 import type { GraphsRequest, GraphsResponse } from "./proto/anki/stats_pb"
+import type { Buckets } from "./revlogGraphs"
 import { getRevlogs, type CardData, type Revlog } from "./search"
 import type { Tooltip } from "./tooltip"
 
@@ -35,6 +37,8 @@ export let pieLast = writable(59)
 export let pieSteps = writable(10)
 export let scroll = writable(0)
 export let binSize = writable(1)
+
+export let fatigueLoss = writable<Buckets<LossBar[]> | undefined>(undefined)
 
 //Tooltip related stores
 export let tooltip = writable<Tooltip>({

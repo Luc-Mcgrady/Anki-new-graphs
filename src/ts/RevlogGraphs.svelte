@@ -2,7 +2,16 @@
     import GraphContainer from "./GraphContainer.svelte"
     import IntervalGraph from "./IntervalGraph.svelte"
     import { catchErrors, type CardData, type Revlog } from "./search"
-    import { binSize, burdenOrLoad, config, pieLast, pieSteps, scroll, searchLimit } from "./stores"
+    import {
+        binSize,
+        burdenOrLoad,
+        config,
+        fatigueLoss,
+        pieLast,
+        pieSteps,
+        scroll,
+        searchLimit,
+    } from "./stores"
     import _ from "lodash"
     import BarScrollable from "./BarScrollable.svelte"
     import type { PieDatum } from "./pie"
@@ -14,7 +23,7 @@
         day_ms,
         easeBarChart,
         today,
-        type revlogBuckets,
+        type RevlogBuckets,
     } from "./revlogGraphs"
     import GraphCategory from "./GraphCategory.svelte"
     import Warning from "./Warning.svelte"
@@ -148,7 +157,7 @@
     let normalize_ease = false
     $: limit = -1 - $searchLimit
 
-    let mature_filter: keyof revlogBuckets = "young"
+    let mature_filter: keyof RevlogBuckets = "not_learn"
 
     let fatigue_bin_size = 10
     let interval_scroll = 1
@@ -439,6 +448,38 @@
             <b>This will be affected by the card review/display order.</b>
         </p>
     </GraphContainer>
+    {#if $fatigueLoss}
+        <GraphContainer>
+            <h1>FSRS Loss by Fatigue</h1>
+            <BarScrollable
+                bind:binSize={fatigue_bin_size}
+                data={{
+                    row_colours: ["red"],
+                    row_labels: ["RMSE"],
+                    data: $fatigueLoss[mature_filter].map((v, i) => ({
+                        label: i.toString(),
+                        values: v,
+                    })),
+                }}
+                left_aligned
+                average
+                loss
+                trend
+                trend_info={{
+                    x: "prior review that day",
+                    x_s: "prior reviews that day",
+                    y: "loss",
+                    y_s: "loss",
+                }}
+            ></BarScrollable>
+            <MatureFilterSelector bind:group={mature_filter}></MatureFilterSelector>
+            <p>
+                This graph displays how inaccurate FSRS is by the number of reviews you did prior in
+                that day. <br />
+                Useful if you want to set a review limit.
+            </p>
+        </GraphContainer>
+    {/if}
     <GraphContainer>
         <h1>Time Ratings</h1>
         <BarScrollable

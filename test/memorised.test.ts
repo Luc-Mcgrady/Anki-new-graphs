@@ -31,7 +31,8 @@ test("Day Timings", ()=>{
         did: 1
     } as any],
     configs,
-    mappings)
+    mappings).retrievabilityDays
+    
     expect(memorised.length).not.toBe(0)
     expect(memorised[0]).toBe(1)
     expect(memorised[5]).toBe(1)
@@ -56,7 +57,7 @@ test("Stability", ()=>{
         did: 1
     } as any],
     configs,
-    mappings)
+    mappings).retrievabilityDays
 
     const OFFSET = 10
 
@@ -83,7 +84,7 @@ test("Stability On Forget", ()=>{
         did: 1
     } as any],
     configs,
-    mappings)
+    mappings).retrievabilityDays
 
     const OFFSET = 10
 

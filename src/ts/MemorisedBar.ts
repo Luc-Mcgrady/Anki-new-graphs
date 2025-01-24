@@ -9,9 +9,16 @@ import {
     FSRSVersion,
     generatorParameters,
 } from "ts-fsrs"
+import type { LossBar } from "./bar"
 import type { DeckConfig } from "./config"
-import { dayFromMs, IDify, rollover_ms, today } from "./revlogGraphs"
+import { type Buckets, dayFromMs, emptyBuckets, IDify, rollover_ms, today } from "./revlogGraphs"
 import type { CardData, Revlog } from "./search"
+
+interface LossBin {
+    real: number
+    predicted: number
+    count: number
+}
 
 export function getMemorisedDays(
     revlogs: Revlog[],
@@ -57,6 +64,20 @@ export function getMemorisedDays(
     }
 
     let last_stability: number[] = []
+
+    function incrementLoss(bin: LossBin | null, predicted: number, real: number) {
+        bin ??= { predicted: 0, real: 0, count: 0 }
+
+        bin.predicted = (bin.predicted || 0) + predicted
+        bin.real = (bin.real || 0) + real
+        bin.count = (bin.count || 0) + 1
+
+        return bin
+    }
+
+    let fatigue_bins: Buckets<LossBin[]> = emptyBuckets(() => [])
+    let today_so_far = 0
+    let last_date = new Date()
 
     for (const revlog of revlogs) {
         const config = card_config(revlog.cid)
@@ -104,6 +125,38 @@ export function getMemorisedDays(
             const newDate = new Date(now.getTime() - rollover_ms)
             newDate.setHours(0, 0, 0, 0)
             elapsed = dateDiffInDays(oldDate, newDate)
+
+            if (newDate.getTime() != last_date.getTime()) {
+                today_so_far = 0
+                last_date = newDate
+            }
+
+            const predicted = fsrs.forgetting_curve(elapsed, card.stability)
+            const y = grade > 1 ? 1 : 0
+            let card_type: LossBin[]
+
+            fatigue_bins.all[today_so_far] = incrementLoss(
+                fatigue_bins.all[today_so_far],
+                predicted,
+                y
+            )
+            if (elapsed >= 1) {
+                fatigue_bins.not_learn[today_so_far] = incrementLoss(
+                    fatigue_bins.not_learn[today_so_far],
+                    predicted,
+                    y
+                )
+                if (elapsed >= 21) {
+                    card_type = fatigue_bins.mature
+                } else {
+                    card_type = fatigue_bins.young
+                }
+            } else {
+                card_type = fatigue_bins.learn
+            }
+            card_type[today_so_far] = incrementLoss(card_type[today_so_far], predicted, y)
+
+            today_so_far += 1
         }
         const newState = fsrs.next_state(memoryState, elapsed, grade)
         card.last_review = now
@@ -149,5 +202,12 @@ export function getMemorisedDays(
         )
     }
 
-    return retrievabilityDays
+    const fatigueRMSE = _.mapValues(fatigue_bins, (bins) =>
+        bins.map(
+            ({ real, predicted, count }) =>
+                [((real - predicted) / count) ** 2 * count, count] as LossBar
+        )
+    )
+
+    return { retrievabilityDays, fatigueRMSE }
 }
