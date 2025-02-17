@@ -96,6 +96,8 @@ export function calculateRevlogStats(
     let sibling_time_ease: number[][] = emptyArray(initialEase())
     let day_review_count: number[] = []
 
+    let cid_previous_reviews: number[][] = []
+
     function incrementEase(ease_array: number[][], day: number, ease: number) {
         // Doesn't check for negative ease (manual reschedule)
         ease_array[day] = ease_array[day] ? ease_array[day] : initialEase()
@@ -153,6 +155,7 @@ export function calculateRevlogStats(
         if (revlog.ease == 0 && revlog.ivl == 0) {
             introduced.delete(revlog.cid)
             forgotten.add(revlog.cid)
+            cid_previous_reviews[revlog.cid] = []
             if (revlog.lastIvl != 0) {
                 day_forgotten[day] = (day_forgotten[day] ?? 0) + 1
             }
@@ -172,7 +175,29 @@ export function calculateRevlogStats(
         if (card) {
             if (revlog.ivl >= 0 || card.ivl < 0) {
                 burden_revlogs.push(revlog)
+
+                cid_previous_reviews[revlog.cid] ??= []
+                cid_previous_reviews[revlog.cid].push(revlog.ivl)
             }
+        }
+    }
+
+    let card_reviews = Object.values(cid_previous_reviews)
+    let last_review = _.max(card_reviews.map((arr) => arr.length)) ?? 0
+    let review_intervals: [number, number][][] = new Array(last_review).fill(null).map(() => []) // [actual, padding]
+
+    for (const card of card_reviews) {
+        for (const [i, ivl] of card.entries()) {
+            const arr = review_intervals[i]
+            arr[ivl] ??= [0, 0]
+            arr[ivl][0] = arr[ivl][0] ? arr[ivl][0] + 1 : 1
+        }
+        const last_real_review = card.pop() ?? 0
+        for (let i = card.length; i < last_review; i++) {
+            const arr = review_intervals[i]
+            const pad_index = last_real_review
+            arr[pad_index] ??= [0, 0]
+            arr[pad_index][1] = arr[pad_index][1] ? arr[pad_index][1] + 1 : 1
         }
     }
 
@@ -229,6 +254,7 @@ export function calculateRevlogStats(
         day_forgotten,
         remaining_forgotten,
         intervals,
+        review_intervals,
     }
 }
 

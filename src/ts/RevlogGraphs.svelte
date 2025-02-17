@@ -53,6 +53,7 @@
         remaining_forgotten,
         intervals,
         interval_ease,
+        review_intervals,
     } = catchErrors(() => calculateRevlogStats(revlogData, cardData)))
 
     $: burden_change = DeltaIfy(burden)
@@ -143,6 +144,21 @@
         row_labels: ["Cards"],
         data: Array.from(time_machine_intervals).map((v, i) => ({
             values: [v ?? 0],
+            label: i.toString(),
+        })),
+        tick_spacing: 5,
+        columnLabeler: barStringLabeler("Interval of $s"),
+    }
+
+    let review_no: number = 0
+    let review_bar: BarChart
+    let show_settled = false
+    $: console.log({ review_intervals })
+    $: review_bar = {
+        row_colours: show_settled ? ["#70AFD6", "#0c8b91"] : ["#70AFD6"],
+        row_labels: show_settled ? ["Active", "Settled"] : ["Cards"],
+        data: Array.from(review_intervals[review_no] ?? []).map((v, i) => ({
+            values: show_settled ? v : [(v ?? [0])[0]],
             label: i.toString(),
         })),
         tick_spacing: 5,
@@ -576,6 +592,48 @@
             </span>
         </label>
         <p>Shows your review intervals for a given date</p>
+        {#if truncated}
+            <Warning>May be inaccurate while "all history" is not selected.</Warning>
+        {/if}
+    </GraphContainer>
+</GraphCategory>
+<GraphCategory>
+    <GraphContainer>
+        <h1>Interval By Previous Reviews</h1>
+        <BarScrollable data={review_bar} left_aligned />
+        <label class="scroll">
+            <span style:width="3ch">
+                {review_no + 1}:
+            </span>
+            <span class="scroll">
+                1
+                <input
+                    type="range"
+                    min={0}
+                    max={review_intervals.length - 1}
+                    bind:value={review_no}
+                />
+                {review_intervals.length}
+            </span>
+        </label>
+        <label>
+            <input type="checkbox" bind:checked={show_settled} />
+            Show Settled
+        </label>
+        <p>
+            Shows the intervals for cards when they had X number of previous reviews (intra-day
+            reviews are not counted)
+        </p>
+        <p>
+            <code>Show Settled</code>
+            will also show cards which have less reviews than X
+        </p>
+        <span>
+            Cards with {">"}
+            {review_no - 1} reviews: {_.sumBy(review_intervals[review_no] ?? [], (b) =>
+                b ? b[0] : 0
+            )}
+        </span>
         {#if truncated}
             <Warning>May be inaccurate while "all history" is not selected.</Warning>
         {/if}
